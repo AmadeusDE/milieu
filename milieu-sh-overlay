@@ -1,0 +1,16 @@
+#!/bin/sh
+# milieu-sh-overlay: Overlay milieu tools onto the system PATH without
+# changing the user's shell. The current $SHELL is kept; milieu bin/ is
+# simply prepended so its tools take priority.
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$BASE_DIR/bin:$PATH"
+
+# Determine the shell to use: respect $SHELL, fall back to sh
+USER_SHELL="${SHELL:-/bin/sh}"
+
+if [ $# -gt 0 ]; then
+    exec "$USER_SHELL" "$@"
+else
+    exec "$USER_SHELL" -i
+fi

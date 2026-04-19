@@ -1,0 +1,14 @@
+#!/bin/sh
+# milieu-sh-sys: Enter the static milieu environment with milieu PREPENDED to
+# the system PATH. System tools remain accessible as a fallback.
+
+BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+export PATH="$BASE_DIR/bin:$PATH"
+export SHELL="$BASE_DIR/bin/mksh"
+export ENV="$BASE_DIR/etc/mkshrc"
+
+if [ $# -gt 0 ]; then
+    exec "$BASE_DIR/bin/mksh" "$@"
+else
+    exec "$BASE_DIR/bin/mksh" -i
+fi

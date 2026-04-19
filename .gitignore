@@ -1,0 +1,19 @@
+# Ignore everything by default
+*
+
+# Always track these core files
+!.gitignore
+!build.sh
+!install-links.sh
+!package.sh
+!milieu-sh
+!milieu-sh-sys
+!milieu-sh-overlay
+
+# Track the configs/ directory and all its contents
+!configs/
+!configs/**
+
+# Track the etc/ directory and all its contents
+!etc/
+!etc/**

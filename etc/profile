@@ -1,0 +1,12 @@
+# milieu environment profile
+
+export HOME="/home/unix"
+export PAGER="/home/unix/src/milieu/bin/mandoc-bin/less"
+export MANPAGER="/home/unix/src/milieu/bin/mandoc-bin/less"
+
+# Alias coreutils to toybox/busybox preference
+# Toybox usually has a cleaner output for modern Linux
+alias ls='toybox ls --color=auto'
+alias grep='toybox grep --color=auto'
+alias cat='toybox cat'
+alias ps='toybox ps'
