@@ -1,0 +1,11 @@
+#!/bin/sh
+# Simple col -b replacement to strip overstrikes
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -*) shift ;;
+        *) break ;;
+    esac
+done
+# Handle literal backspaces and mangled question marks
+# shellcheck disable=SC2086
+exec sed 's/\(.\)[\x08?]\1/\1/g; s/_[\x08?]\(.\)/\1/g; s/.\x08//g' "$@"

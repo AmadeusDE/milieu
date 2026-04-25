@@ -1,0 +1,23 @@
+# shellcheck shell=bash
+# * The "Instant Wipe" Backspace Hack
+backward-delete-char-instant() {
+  # 1. Check if we are at the start of the line (don't delete the prompt)
+  if [[ $CURSOR -eq 0 ]]; then
+    return
+  fi
+
+  # 2. Manually move cursor left, wipe character, move left again
+  # \b = Backspace (move left)
+  # \e[K = Clear to end of line
+  printf "\b\e[K"
+
+  # 3. Tell Zsh to update its internal logic to match the screen
+  zle backward-delete-char
+  
+  # 4. Sync the display
+  zle redisplay
+}
+
+zle -N backward-delete-char-instant
+bindkey '^?' backward-delete-char-instant
+bindkey '^H' backward-delete-char-instant

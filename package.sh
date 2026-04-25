@@ -19,6 +19,10 @@ tar -czf "$BIN_OUT" \
     -C "$BASE_DIR" \
     bin \
     etc \
+    lib \
+    libexec \
+    share \
+    usr \
     milieu-sh \
     milieu-sh-sys \
     milieu-sh-overlay
@@ -30,6 +34,7 @@ tar -czf "$SRC_OUT" \
     -C "$BASE_DIR" \
     configs \
     etc \
+    script \
     build.sh \
     install-links.sh \
     milieu-sh \

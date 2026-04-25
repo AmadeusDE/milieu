@@ -1,0 +1,73 @@
+#!/bin/sh
+# * milieu-sync: Installs tools using Go, Cargo, and uv into the user's local environment.
+
+SYNC_VERSION="1"
+SYNC_MARKER="$ENV_ROOT/.milieu_sync_version"
+
+mkdir -p "$ENV_ROOT"
+
+if [ -f "$SYNC_MARKER" ]; then
+    CURRENT_VERSION=$(cat "$SYNC_MARKER")
+    if [ "$CURRENT_VERSION" = "$SYNC_VERSION" ]; then
+        exit 0
+    fi
+fi
+
+echo "--- Synchronizing Milieu Environment Tools (v$SYNC_VERSION) ---"
+echo "This may take a moment on first launch or update..."
+
+# * 1. Rust Tools (via cargo-binstall)
+# * These will be installed into $CARGO_HOME/bin
+RUST_TOOLS="ripgrep bat uv eza procs bottom zoxide tokei nu"
+if command -v cargo-binstall >/dev/null 2>&1; then
+    echo "--- Installing Rust Tools ---"
+    # TODO maybe should used --locked?
+    # shellcheck disable=SC2086
+    cargo binstall -y $RUST_TOOLS
+else
+    # ! Warning: cargo-binstall not found
+    echo "Warning: cargo-binstall not found, skipping Rust tools."
+fi
+
+# * 2. Go Tools
+# * These will be installed into $GOPATH/bin
+GO_TOOLS="
+    github.com/jesseduffield/lazygit@latest
+    github.com/dundee/gdu/v5/cmd/gdu@latest
+    github.com/muesli/duf@latest
+    github.com/Equationzhao/g@latest
+    github.com/junegunn/fzf@latest
+    github.com/gokcehan/lf@latest
+"
+if command -v go >/dev/null 2>&1; then
+    echo "--- Installing Go Tools ---"
+    for tool in $GO_TOOLS; do
+        echo "Installing $tool..."
+        go install "$tool"
+    done
+else
+    # ! Warning: go not found
+    echo "Warning: go not found, skipping Go tools."
+fi
+
+# * 3. Python Tools (via uv)
+# * These will be installed into $UV_TOOL_BIN_DIR
+PYTHON_TOOLS="
+    tldr
+    hyfetch
+"
+if command -v uv >/dev/null 2>&1; then
+    echo "--- Installing Python Tools ---"
+    for tool in $PYTHON_TOOLS; do
+        echo "Installing $tool..."
+        uv tool install "$tool"
+    done
+    uv tool install thefuck --python 3.11 --force
+else
+    # ! Warning: uv not found
+    echo "Warning: uv not found, skipping Python tools."
+fi
+
+echo "--- Tools Sync Complete ---"
+mkdir -p "$ENV_ROOT"
+echo "$SYNC_VERSION" > "$SYNC_MARKER"

@@ -1,0 +1,13 @@
+#!/bin/sh
+# Wrapper to swallow -T flag and strip overstrikes
+args=""
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -T) shift; shift ;;
+        -K) shift ;;
+        *) args="$args $1"; shift ;;
+    esac
+done
+# Pipe through col to strip overstrikes before viewing
+# shellcheck disable=SC2086
+"$(dirname "$0")/col" | busybox less -RS $args

@@ -1,5 +1,5 @@
 #!/bin/sh
-# install-links.sh: Create relative symlinks for toybox, busybox, sbase, ubase, coreutils, util-linux, and mandoc
+# install-links.sh: Create relative symlinks for all milieu tool packages
 
 BIN_DIR="bin"
 if [ ! -d "$BIN_DIR" ]; then
@@ -10,9 +10,18 @@ fi
 cd "$BIN_DIR" || exit
 echo "--- Installing Relative Applet Links ---"
 
-# 1. Install mandoc binaries (Priority 0 - Absolute Lowest)
+# 1. Install binutils binaries (Priority 0 - Absolute Lowest)
+if [ -d "binutils-bin" ]; then
+    echo "Installing binutils links..."
+    for cmd_path in binutils-bin/*; do
+        cmd=$(basename "$cmd_path")
+        [ -n "$cmd" ] && [ ! -e "$cmd" ] && ln -s "$cmd_path" "$cmd"
+    done
+fi
+
+# 2. Install mandoc binaries (Priority 1)
 if [ -d "mandoc-bin" ]; then
-    echo "Installing mandoc links..."
+    echo "Installing mandoc links (overriding binutils)..."
     for cmd_path in mandoc-bin/*; do
         cmd=$(basename "$cmd_path")
         [ -n "$cmd" ] && [ ! -e "$cmd" ] && ln -s "$cmd_path" "$cmd"
@@ -60,14 +69,26 @@ if [ -f "busybox" ]; then
     done
 fi
 
-# 7. Install Toybox links (Priority 6 - Highest)
+# 7. Install Toybox links (Priority 6)
 if [ -f "toybox" ]; then
-    echo "Installing Toybox links (overriding everything else)..."
+    echo "Installing Toybox links (overriding busybox)..."
     for cmd in $(./toybox); do
         if [ "$cmd" != "toybox" ]; then
             ln -sf toybox "$cmd"
         fi
     done
+fi
+
+# 8. Install Dash links (Priority 7)
+if [ -f "dash" ]; then
+    echo "Installing dash links (overriding toybox)..."
+    ln -sf dash sh
+fi
+
+# 8. Install Mksh links (Priority 7 - Highest)
+if [ -f "mksh" ]; then
+    echo "Installing mksh links (overriding everything else)..."
+    ln -sf mksh ksh
 fi
 
 echo "Done."

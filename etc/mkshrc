@@ -1,4 +1,5 @@
-# Interactive shell configuration
+# shellcheck shell=ksh
+# * Interactive shell configuration
 
 # Source the milieu profile for environment variables and aliases
 [ -f "/home/unix/src/milieu/etc/profile" ] && . "/home/unix/src/milieu/etc/profile"
@@ -50,6 +51,6 @@ _milieu_prompt() {
     print -r -- "${user_info} ${ec_info} ${wd_info} ${P_ARROW}➜${P_RESET} "
 }
 
-pfetch
+# pfetch
 
 PS1='$(_milieu_prompt)'

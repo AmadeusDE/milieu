@@ -5,10 +5,11 @@
 !.gitignore
 !build.sh
 !install-links.sh
-!package.sh
+!LLM_REFERENCE.md
 !milieu-sh
 !milieu-sh-sys
 !milieu-sh-overlay
+!package.sh
 
 # Track the configs/ directory and all its contents
 !configs/
@@ -16,4 +17,10 @@
 
 # Track the etc/ directory and all its contents
 !etc/
-!etc/**
+!etc/mkshrc
+!etc/profile
+!etc/zshrc
+
+# Track the script/ directory and all its contents
+!script/
+!script/**

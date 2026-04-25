@@ -1,13 +1,15 @@
 #!/bin/sh
 set -e
 
-# build.sh: Refactored with a clean directory structure (src/ component-name)
+# * build.sh: Refactored with a clean directory structure (src/ component-name)
 BASE_DIR=$(pwd)
 BIN_DIR="$BASE_DIR/bin"
 TOOLCHAIN_DIR="$BASE_DIR/toolchain"
 CONFIG_DIR="$BASE_DIR/configs"
 SRC_ROOT="$BASE_DIR/src"
 CACHE_DIR="$SRC_ROOT/cache"
+MILIEU_DIR="$(pwd)"
+export MILIEU_DIR
 
 mkdir -p "$BIN_DIR" "$TOOLCHAIN_DIR" "$CONFIG_DIR" "$SRC_ROOT" "$CACHE_DIR" etc
 
@@ -16,7 +18,26 @@ if [ ! -f "$TOOLCHAIN_DIR/bin/x86_64-linux-musl-gcc" ]; then
     curl -L https://musl.cc/x86_64-linux-musl-cross.tgz -o "$CACHE_DIR/musl-cross.tgz"
     tar -xzf "$CACHE_DIR/musl-cross.tgz" -C "$TOOLCHAIN_DIR" --strip-components=1
 fi
+# export PATH="$BIN_DIR:$TOOLCHAIN_DIR/bin:$PATH"
 export PATH="$TOOLCHAIN_DIR/bin:$PATH"
+
+echo "--- Building gmake Statically ---"
+if [ ! -d "$SRC_ROOT/gmake" ]; then
+    curl -L https://ftp.gnu.org/gnu/make/make-4.4.1.tar.gz -o "$CACHE_DIR/gmake.tar.gz"
+    mkdir -p "$SRC_ROOT/gmake"
+    tar -xzf "$CACHE_DIR/gmake.tar.gz" -C "$SRC_ROOT/gmake" --strip-components=1
+fi
+(
+    cd "$SRC_ROOT/gmake" || exit
+    ./configure CC="x86_64-linux-musl-gcc" \
+                CFLAGS="-static" LDFLAGS="-static" \
+                --host=x86_64-pc-linux-gnu \
+                --disable-nls
+    make "-j$(nproc)"
+    rm -f "$BIN_DIR/gmake"
+    cp make "$BIN_DIR/gmake"
+    ln -s "$BIN_DIR/gmake" "$BIN_DIR/make"
+)
 
 echo "--- Building toybox from source ---"
 if [ ! -d "$SRC_ROOT/toybox" ]; then
@@ -34,7 +55,7 @@ fi
         make defconfig
     fi
     
-    # Enforce mandatory settings for milieu
+    # ! Enforce mandatory settings for milieu
     echo "Enforcing milieu requirements in toybox config..."
     sed -i 's/# CONFIG_VI is not set/CONFIG_VI=y/' .config || true
     sed -i 's/CONFIG_VI=n/CONFIG_VI=y/' .config || true
@@ -47,6 +68,7 @@ fi
     cp toybox "$BIN_DIR/toybox"
     cp .config "$CONFIG_DIR/toybox.config"
 )
+"$BASE_DIR/install-links.sh"
 
 echo "--- Building busybox from source ---"
 if [ ! -d "$SRC_ROOT/busybox" ]; then
@@ -64,12 +86,12 @@ fi
         make defconfig
     fi
     
-    # Enforce mandatory settings for milieu
+    # ! Enforce mandatory settings for milieu
     echo "Enforcing milieu requirements in busybox config..."
     sed -i 's/^# CONFIG_STATIC is not set/CONFIG_STATIC=y/' .config
     sed -i 's/^CONFIG_STATIC=n/CONFIG_STATIC=y/' .config || true
     
-    # Sync config
+    # * Sync config
     make oldconfig CC=x86_64-linux-musl-gcc HOSTCC=gcc < /dev/null || make olddefconfig CC=x86_64-linux-musl-gcc HOSTCC=gcc
     
     make CC=x86_64-linux-musl-gcc HOSTCC=gcc CFLAGS="--static" LDFLAGS="--static" "-j$(nproc)"
@@ -77,19 +99,7 @@ fi
     cp busybox "$BIN_DIR/busybox"
     cp .config "$CONFIG_DIR/busybox.config"
 )
-
-echo "--- Building mksh Statically ---"
-if [ ! -d "$SRC_ROOT/mksh" ]; then
-    curl -L http://www.mirbsd.org/MirOS/dist/mir/mksh/mksh-R59c.tgz -o "$CACHE_DIR/mksh.tgz"
-    mkdir -p "$SRC_ROOT/mksh"
-    tar -xzf "$CACHE_DIR/mksh.tgz" -C "$SRC_ROOT/mksh" --strip-components=1
-fi
-(
-    cd "$SRC_ROOT/mksh" || exit
-    CC="x86_64-linux-musl-gcc" LDFLAGS="-static" sh Build.sh -r
-    rm -f "$BIN_DIR/mksh"
-    cp mksh "$BIN_DIR/mksh"
-)
+"$BASE_DIR/install-links.sh"
 
 echo "--- Building dash Statically ---"
 if [ ! -d "$SRC_ROOT/dash" ]; then
@@ -110,13 +120,27 @@ fi
     cp src/dash "$BIN_DIR/dash"
 )
 
+echo "--- Building mksh Statically ---"
+if [ ! -d "$SRC_ROOT/mksh" ]; then
+    curl -L http://www.mirbsd.org/MirOS/dist/mir/mksh/mksh-R59c.tgz -o "$CACHE_DIR/mksh.tgz"
+    mkdir -p "$SRC_ROOT/mksh"
+    tar -xzf "$CACHE_DIR/mksh.tgz" -C "$SRC_ROOT/mksh" --strip-components=1
+fi
+(
+    cd "$SRC_ROOT/mksh" || exit
+    CC="x86_64-linux-musl-gcc" LDFLAGS="-static" dash Build.sh -r
+    rm -f "$BIN_DIR/mksh"
+    cp mksh "$BIN_DIR/mksh"
+)
+
 echo "--- Building sbase-box Statically ---"
 if [ ! -d "$SRC_ROOT/sbase" ]; then
     git clone git://git.suckless.org/sbase "$SRC_ROOT/sbase"
 fi
 (
     cd "$SRC_ROOT/sbase" || exit
-    make CC="x86_64-linux-musl-gcc" CFLAGS="-static" LDFLAGS="-static" sbase-box "-j$(nproc)"
+    mkdir -p build
+    PATH="/usr/bin:/bin:$PATH" make CC="x86_64-linux-musl-gcc" CFLAGS="-static" LDFLAGS="-static" sbase-box -j1
     rm -f "$BIN_DIR/sbase-box"
     cp sbase-box "$BIN_DIR/sbase-box"
 )
@@ -128,7 +152,7 @@ fi
 (
     cd "$SRC_ROOT/ubase" || exit
     mkdir -p build
-    make CC="x86_64-linux-musl-gcc" CFLAGS="-static" LDFLAGS="-static" ubase-box "-j$(nproc)"
+    PATH="/usr/bin:/bin:$PATH" make CC="x86_64-linux-musl-gcc" CFLAGS="-static" LDFLAGS="-static" ubase-box -j1
     rm -f "$BIN_DIR/ubase-box"
     cp ubase-box "$BIN_DIR/ubase-box"
 )
@@ -163,7 +187,7 @@ if [ ! -d "$SRC_ROOT/util-linux" ]; then
 fi
 (
     cd "$SRC_ROOT/util-linux" || exit
-    # Reset source tree via re-extraction to avoid config errors from previous attempts
+    # ! Reset source tree via re-extraction to avoid config errors from previous attempts
     cd "$SRC_ROOT" || exit
     rm -rf util-linux
     mkdir -p util-linux
@@ -195,13 +219,13 @@ fi
                 --disable-makeinstall-chown
     make "-j$(nproc)"
     
-    # Use make install with DESTDIR to get all binaries correctly organized
+    # * Use make install with DESTDIR to get all binaries correctly organized
     echo "--- Installing util-linux binaries to temporary prefix ---"
     rm -rf "$BASE_DIR/util-linux-dist"
     make install DESTDIR="$BASE_DIR/util-linux-dist"
     
     mkdir -p "$BIN_DIR/util-linux-bin"
-    # Copy from all common binary locations in the dist folder
+    # * Copy from all common binary locations in the dist folder
     find "$BASE_DIR/util-linux-dist" -type f -executable \( -path "*/bin/*" -o -path "*/sbin/*" \) -exec cp {} "$BIN_DIR/util-linux-bin/" \;
     rm -rf "$BASE_DIR/util-linux-dist"
 )
@@ -227,7 +251,7 @@ if [ ! -d "$SRC_ROOT/mandoc" ]; then
 fi
 (
     cd "$SRC_ROOT/mandoc" || exit
-    # Create configure.local for static musl build, pointing to our zlib
+    # * Create configure.local for static musl build, pointing to our zlib
     cat <<EOF > configure.local
 CC=x86_64-linux-musl-gcc
 CFLAGS="-static -I$BASE_DIR/zlib-dist/include"
@@ -237,63 +261,11 @@ MANDIR=/usr/share/man
 EOF
     ./configure
     make "-j$(nproc)"
-    # Create Busybox-compatible wrappers in source for reproducibility
-    WRAPPER_DIR="$SRC_ROOT/mandoc-wrappers"
-    mkdir -p "$WRAPPER_DIR"
-
-    cat <<EOF > "$WRAPPER_DIR/nroff"
-#!/bin/sh
-# Robust nroff wrapper for mandoc
-REAL_MANDOC="\$(dirname "\$0")/mandoc"
-[ -f "\$REAL_MANDOC" ] || REAL_MANDOC="mandoc"
-cmd_args=""
-for arg in "\$@"; do
-    case "\$arg" in
-        -r*) ;; # Skip registers
-        -T*) ;; # Skip T settings
-        *) cmd_args="\$cmd_args \$arg" ;;
-    esac
-done
-# shellcheck disable=SC2086
-exec "\$REAL_MANDOC" -Tascii \$cmd_args
-EOF
-
-    cat <<EOF > "$WRAPPER_DIR/col"
-#!/bin/sh
-# Simple col -b replacement to strip overstrikes
-while [ \$# -gt 0 ]; do
-    case "\$1" in
-        -*) shift ;;
-        *) break ;;
-    esac
-done
-# Handle literal backspaces and mangled question marks
-# shellcheck disable=SC2086
-exec sed 's/\(.\)[\x08?]\1/\1/g; s/_[\x08?]\(.\)/\1/g; s/.\x08//g' "\$@"
-EOF
-
-    cat <<EOF > "$WRAPPER_DIR/less"
-#!/bin/sh
-# Wrapper to swallow -T flag and strip overstrikes
-args=""
-while [ \$# -gt 0 ]; do
-    case "\$1" in
-        -T) shift; shift ;;
-        *) args="\$args \$1"; shift ;;
-    esac
-done
-# Pipe through col to strip overstrikes before viewing
-# shellcheck disable=SC2086
-"\$(dirname "\$0")/col" | busybox less -RS \$args
-EOF
-
-    chmod +x "$WRAPPER_DIR"/*
 
     mkdir -p "$BIN_DIR/mandoc-bin"
     cp mandoc demandoc soelim "$BIN_DIR/mandoc-bin/"
-    cp "$WRAPPER_DIR"/* "$BIN_DIR/mandoc-bin/"
 
-    # Create symlinks for unified tools
+    # * Create symlinks for unified tools
     (
         cd "$BIN_DIR/mandoc-bin" || exit
         ln -sf mandoc man
@@ -306,61 +278,113 @@ EOF
 
 echo "--- Installing pfetch ---"
 curl -L https://raw.githubusercontent.com/dylanaraps/pfetch/master/pfetch -o "$BIN_DIR/pfetch"
-chmod +x "$BIN_DIR/pfetch"
 
-echo "--- Building ncurses Statically ---"
-if [ ! -d "$SRC_ROOT/ncurses" ]; then
-    curl -L https://ftp.gnu.org/pub/gnu/ncurses/ncurses-6.4.tar.gz -o "$CACHE_DIR/ncurses.tar.gz"
-    mkdir -p "$SRC_ROOT/ncurses"
-    tar -xzf "$CACHE_DIR/ncurses.tar.gz" -C "$SRC_ROOT/ncurses" --strip-components=1
+echo "--- Installing fastfetch ---"
+if [ ! -f "$BIN_DIR/fastfetch" ]; then
+    curl -L "https://github.com/fastfetch-cli/fastfetch/releases/download/2.61.0/fastfetch-linux-amd64.tar.gz" \
+         -o "$CACHE_DIR/fastfetch.tar.gz"
+
+    # * Extract everything
+    tar -xzf "$CACHE_DIR/fastfetch.tar.gz" -C "$CACHE_DIR"
+
+    # * Specifically look for the binary in the usr/bin path within the extracted folder
+    # * This avoids the bash-completion file located in the shell/ completions folder
+    find "$CACHE_DIR" -path "*/usr/bin/fastfetch" -type f -exec cp {} "$BIN_DIR/fastfetch" \;
+    find "$CACHE_DIR" -path "*/usr/bin/flashfetch" -type f -exec cp {} "$BIN_DIR/flashfetch" \;
+fi
+
+echo "--- Installing Rust ---"
+
+RUST_VERSION="1.95.0"
+RUST_ARCH="x86_64-unknown-linux-gnu"
+
+if [ ! -f "$BIN_DIR/rustc" ]; then
+    # * Download the standalone 'combined' installer
+    # * This includes cargo, rustc, and std for the musl target
+    if [ ! -f "$CACHE_DIR/rust.tar.xz" ]; then
+        curl -L "https://static.rust-lang.org/dist/rust-${RUST_VERSION}-${RUST_ARCH}.tar.xz" \
+           -o "$CACHE_DIR/rust.tar.xz"
+
+        # * Extract to a temporary folder in cache
+        mkdir -p "$CACHE_DIR/rust_tmp"
+        PATH="/usr/bin:/bin:/usr/local/bin:$PATH" tar -xf "$CACHE_DIR/rust.tar.xz" -C "$CACHE_DIR/rust_tmp" --strip-components=1
+    fi
+
+    # * Rust's installer script is actually very friendly to local dirs.
+    # * We use --destdir and --prefix to install it into your local environment path.
+    # * $BIN_DIR is usually inside a parent 'local' or 'env' folder. 
+    # * We'll install to the parent of BIN_DIR so it populates bin/, lib/, and share/ correctly.
+    ENV_ROOT=$(dirname "$BIN_DIR")
+    
+    PATH="/usr/bin:/bin:/usr/local/bin:$PATH" bash "$CACHE_DIR/rust_tmp/install.sh" \
+        --destdir="$ENV_ROOT" \
+        --prefix="" \
+        --disable-ldconfig
+
+    # * Cleanup
+    #rm -rf "$CACHE_DIR/rust_tmp"
+    
+    echo "Rust installed to $ENV_ROOT"
+fi
+
+echo "--- Installing GCC (glibc) toolchain ---"
+# * We need a glibc-targeted GCC so Rust and other tools work correctly on glibc hosts (like SteamOS).
+# * We install this into libexec/ so it gets packaged by package.sh for the final milieu environment.
+if [ ! -d "$BASE_DIR/libexec/bootlin-gcc" ]; then
+    curl -L https://toolchains.bootlin.com/downloads/releases/toolchains/x86-64/tarballs/x86-64--glibc--stable-2024.02-1.tar.bz2 -o "$CACHE_DIR/bootlin-gcc.tar.bz2"
+    mkdir -p "$BASE_DIR/libexec/bootlin-gcc"
+    PATH="/usr/bin:/bin:$PATH" tar -xjf "$CACHE_DIR/bootlin-gcc.tar.bz2" -C "$BASE_DIR/libexec/bootlin-gcc" --strip-components=1
+fi
+
+echo "--- Installing Go toolchain ---"
+if [ ! -d "$SRC_ROOT/go-dist" ]; then
+    curl -L https://go.dev/dl/go1.26.2.linux-amd64.tar.gz -o "$CACHE_DIR/go.tar.gz"
+    mkdir -p "$SRC_ROOT/go-dist"
+    tar -xzf "$CACHE_DIR/go.tar.gz" -C "$SRC_ROOT/go-dist" --strip-components=1
+fi
+# * Symlink go and gofmt into bin so they appear on PATH
+ln -sf "../src/go-dist/bin/go"    "$BIN_DIR/go"
+ln -sf "../src/go-dist/bin/gofmt" "$BIN_DIR/gofmt"
+
+echo "--- Building binutils Statically ---"
+if [ ! -d "$SRC_ROOT/binutils" ]; then
+    curl -L https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz -o "$CACHE_DIR/binutils.tar.xz"
+    mkdir -p "$SRC_ROOT/binutils"
+    tar -xJf "$CACHE_DIR/binutils.tar.xz" -C "$SRC_ROOT/binutils" --strip-components=1
 fi
 (
-    cd "$SRC_ROOT/ncurses" || exit
-    CC="x86_64-linux-musl-gcc" CFLAGS="-static" LDFLAGS="-static" ./configure \
-        --prefix="$BASE_DIR/ncurses-dist" \
-        --with-termlib \
-        --enable-widec \
-        --without-shared \
-        --enable-static \
-        --without-ada \
-        --without-tests \
-        --without-debug \
-        --without-manpages \
-        --without-progs \
-        --with-fallbacks=linux,screen,vt100,xterm,xterm-256color
-    make "-j$(nproc)"
-    make install
-    # Create compat symlinks so packages that look for -lncurses, -ltinfo, -lcurses find our widec libs
-    cd "$BASE_DIR/ncurses-dist/lib" || exit
-    ln -sf libncursesw.a libncurses.a
-    ln -sf libtinfow.a   libtinfo.a
-    ln -sf libncursesw.a libcurses.a
-    # Symlink include dir so #include <ncurses.h> works from the plain include path
-    cd "$BASE_DIR/ncurses-dist/include" || exit
-    [ -e ncurses ] || ln -sf ncursesw ncurses
-)
-
-echo "--- Building htop Statically ---"
-if [ ! -d "$SRC_ROOT/htop" ]; then
-    curl -L https://github.com/htop-dev/htop/archive/refs/tags/3.3.0.tar.gz -o "$CACHE_DIR/htop.tar.gz"
-    mkdir -p "$SRC_ROOT/htop"
-    tar -xzf "$CACHE_DIR/htop.tar.gz" -C "$SRC_ROOT/htop" --strip-components=1
-fi
-(
-    cd "$SRC_ROOT/htop" || exit
-    ./autogen.sh
-    # LIBS forces -lncurses -ltinfo so configure's curses probe succeeds with our widec symlinks
-    CC="x86_64-linux-musl-gcc" \
-    CFLAGS="-static -I$BASE_DIR/ncurses-dist/include -I$BASE_DIR/ncurses-dist/include/ncursesw" \
-    LDFLAGS="-static -L$BASE_DIR/ncurses-dist/lib" \
-    LIBS="-lncurses -ltinfo" \
-    ./configure --host=x86_64-pc-linux-gnu \
+    cd "$SRC_ROOT/binutils" || exit
+    ./configure CC="x86_64-linux-musl-gcc" \
+                CFLAGS="-static" LDFLAGS="-static" \
+                --host=x86_64-pc-linux-musl \
+                --target=x86_64-pc-linux-gnu \
+                --disable-shared \
                 --enable-static \
-                --disable-unicode \
-                --disable-shared
+                --disable-nls \
+                --disable-gdb \
+                --disable-gprofng \
+                --disable-libdecnumber \
+                --disable-readline \
+                --disable-sim \
+                --with-static-standard-libraries
     make "-j$(nproc)"
-    rm -f "$BIN_DIR/htop"
-    cp htop "$BIN_DIR/htop"
+    mkdir -p "$BIN_DIR/binutils-bin"
+    for tool in ar nm objcopy objdump ranlib readelf size strings strip addr2line; do
+        [ -f "binutils/$tool" ] && cp "binutils/$tool" "$BIN_DIR/binutils-bin/"
+    done
+
+    [ -f "gas/as-new" ] && cp "gas/as-new" "$BIN_DIR/binutils-bin/as"
+    [ -f "ld/ld-new" ] && cp "ld/ld-new" "$BIN_DIR/binutils-bin/ld"
+    [ -f "gprof/gprof" ] && cp "gprof/gprof" "$BIN_DIR/binutils-bin/gprof"
+    
+    # * Copy all produced executables in one pass
+    find . -maxdepth 2 -type f -perm /111 \
+        \( -name "ar" -o -name "as" -o -name "ld" -o -name "ld.bfd" \
+        -o -name "nm" -o -name "objcopy" -o -name "objdump" \
+        -o -name "ranlib" -o -name "readelf" -o -name "size" \
+        -o -name "strings" -o -name "strip" -o -name "addr2line" \
+        -o -name "gprof" \) \
+        -exec cp {} "$BIN_DIR/binutils-bin/" \;
 )
 
 echo "--- Building btop Statically ---"
@@ -371,7 +395,7 @@ if [ ! -d "$SRC_ROOT/btop" ]; then
 fi
 (
     cd "$SRC_ROOT/btop" || exit
-    # btop has a built-in STATIC=true flag that handles all static linking flags correctly
+    # * btop has a built-in STATIC=true flag that handles all static linking flags correctly
     make STATIC=true \
          CXX="x86_64-linux-musl-g++" \
          AR="x86_64-linux-musl-ar" \
@@ -381,11 +405,30 @@ fi
     cp bin/btop "$BIN_DIR/btop"
 )
 
+./install-links.sh
+
+echo "--- Installing micro ---"
+
+#curl https://getmic.ro | bash
+
+#mv micro bin/
+
+echo "--- Installing Scriptlets ---"
+cp script/* bin/
+
+echo "--- Installing cargo-binstall ---"
+if [ ! -f "$BIN_DIR/cargo-binstall" ]; then
+    curl -L https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz -o "$CACHE_DIR/cargo-binstall.tgz"
+    tar -xzf "$CACHE_DIR/cargo-binstall.tgz" -C "$BIN_DIR" cargo-binstall
+fi
+
+echo "--- First-launch setup configured (tools will be installed on launch via milieu-sync) ---"
+
 echo "--- Finalizing and Cleanup ---"
 rm -rf "$BASE_DIR/zlib-dist" "$BASE_DIR/ncurses-dist"
-# Strip debug info from single-binary tools to reduce size
+# * Strip debug info from single-binary tools to reduce size
 x86_64-linux-musl-strip "$BIN_DIR/htop" "$BIN_DIR/btop" 2>/dev/null || true
-# Safely chmod only actual files in BIN_DIR to avoid dangling symlink errors
+# * Safely chmod only actual files in BIN_DIR to avoid dangling symlink errors
 find "$BIN_DIR" -maxdepth 1 -type f -exec chmod +x {} +
 echo "Build complete."
 ls -l "$BIN_DIR"

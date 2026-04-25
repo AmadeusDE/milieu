@@ -1,12 +1,38 @@
-# milieu environment profile
+# shellcheck shell=sh
+# * milieu environment profile
 
 export HOME="/home/unix"
-export PAGER="/home/unix/src/milieu/bin/mandoc-bin/less"
-export MANPAGER="/home/unix/src/milieu/bin/mandoc-bin/less"
+export ENV_ROOT="$HOME/.milieu"
+MILIEU_DIR="$(pwd)"
+export MILIEU_DIR
+export PAGER="${MILIEU_DIR}/bin/mandoc-bin/less"
+export MANPAGER="${MILIEU_DIR}/bin/mandoc-bin/less"
 
-# Alias coreutils to toybox/busybox preference
-# Toybox usually has a cleaner output for modern Linux
+# * Go toolchain — GOROOT points into src/go-dist (downloaded by build.sh)
+export GOROOT="${MILIEU_DIR}/src/go-dist"
+export GOPATH="$ENV_ROOT/gopath"
+export GOCACHE="$ENV_ROOT/gopath/cache"
+export GOENV="$ENV_ROOT/gopath/env"
+export CARGO_HOME="$ENV_ROOT/.cargo"
+export RUSTUP_HOME="$ENV_ROOT/.rustup"
+
+# * uv — keep all state inside the milieu directory
+export UV_HOME="$ENV_ROOT/uv-home"
+export UV_CACHE_DIR="$ENV_ROOT/uv-home/cache"
+export UV_DATA_DIR="$ENV_ROOT/uv-home/data"
+export UV_PYTHON_INSTALL_DIR="$ENV_ROOT/uv-home/python"
+export UV_TOOL_DIR="$ENV_ROOT/uv-home/tools"
+export UV_TOOL_BIN_DIR="$ENV_ROOT/uv-home/bin"
+
+export PATH="$CARGO_HOME/bin:$GOPATH/bin:$UV_TOOL_BIN_DIR:$PATH"
+
+# * Alias coreutils to toybox/busybox preference
 alias ls='toybox ls --color=auto'
 alias grep='toybox grep --color=auto'
 alias cat='toybox cat'
 alias ps='toybox ps'
+
+# * Run tools sync on launch if needed
+if [ -x "${MILIEU_DIR}/bin/milieu-sync" ]; then
+    "${MILIEU_DIR}/bin/milieu-sync"
+fi

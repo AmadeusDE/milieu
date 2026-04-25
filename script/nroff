@@ -1,0 +1,14 @@
+#!/bin/sh
+# Robust nroff wrapper for mandoc
+REAL_MANDOC="$(dirname "$0")/mandoc"
+[ -f "$REAL_MANDOC" ] || REAL_MANDOC="mandoc"
+cmd_args=""
+for arg in "$@"; do
+    case "$arg" in
+        -r*) ;; # Skip registers
+        -T*) ;; # Skip T settings
+        *) cmd_args="$cmd_args $arg" ;;
+    esac
+done
+# shellcheck disable=SC2086
+exec "$REAL_MANDOC" -Tascii $cmd_args

@@ -3,6 +3,7 @@
 # Only milieu's bin/ is on PATH — system tools are not accessible.
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+export MILIEU_DIR="$BASE_DIR"
 export PATH="$BASE_DIR/bin"
 export SHELL="$BASE_DIR/bin/mksh"
 export ENV="$BASE_DIR/etc/mkshrc"
