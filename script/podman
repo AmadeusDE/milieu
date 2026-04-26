@@ -1,0 +1,5 @@
+#!/bin/sh
+# * milieu podman wrapper
+# * Execs the static podman binary from libexec/podman-static.
+# * CONTAINERS_CONF and XDG vars are already set by etc/profile.
+exec "${MILIEU_DIR}/libexec/podman-static/bin/podman" "$@"

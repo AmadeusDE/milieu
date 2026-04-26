@@ -2,13 +2,17 @@
 
 This document provides a comprehensive explanation of every tracked file in the `milieu` project. This is targeted towards LLM agents to quickly understand the purpose, structure, and behavior of the repository.
 
+## Working Note
+
+Always update this file as you work so you can reference it to make doing stuff latter easier, even if you are actually just finding stuff that wasn't documented correctly before
+
 ## Root Scripts
 
 - **`build.sh`**
-  The main build pipeline script. It fetches, configures, and statically compiles a wide variety of utilities (musl-cross toolchain, toybox, busybox, mksh, dash, sbase, ubase, coreutils, util-linux, zlib, mandoc, binutils, btop, etc.) from source. It orchestrates the entire process and places outputs into standard directories. It also downloads precompiled versions of language toolchains (Go, Rust, Python uv) to fetch additional utilities.
+  The main build pipeline script. Compiles musl-cross toolchain, toybox, busybox, mksh, dash, sbase, ubase, coreutils, util-linux, zlib, mandoc, binutils, btop, and more from source. Downloads Go, Rust, and Python uv toolchains. Also installs: `nix-portable` as `bin/nix` (store → `$ENV_ROOT/.nix-portable`); `podman-static` ELF binaries (only `usr/local/bin/` and `usr/local/lib/podman/`, never `share/`) into `libexec/podman-static/bin/`; `distrobox` into `bin/`. Generates `etc/containers/containers.conf` from the committed template `etc/containers/containers.conf.in` via `sed`.
 
 - **`install-links.sh`**
-  Handles the creation of relative symlinks for all utilities inside the `bin/` directory. It establishes a priority hierarchy (e.g., `mksh` > `dash` > `toybox` > `busybox` > `sbase` > `ubase` > `coreutils`) to resolve naming conflicts, ensuring that standard milieu tools are correctly mapped.
+  Handles the creation of relative symlinks for all utilities inside the `bin/` directory. It establishes a priority hierarchy (e.g., `mksh` > `dash` >  `coreutils` > `toybox` > `busybox` > `sbase` > `ubase` >`util-linux` > `zlib` > `mandoc` > `binutils`) to resolve naming conflicts, ensuring that standard milieu tools are correctly mapped.
 
 - **`package.sh`**
   A utility script to bundle the compiled and configured `milieu` environment into portable tarballs for distribution. It generates both a binary bundle containing just the executable environment and a source bundle for rebuilding.
@@ -37,7 +41,10 @@ This document provides a comprehensive explanation of every tracked file in the 
   The interactive shell configuration file used by `mksh`. Sets up command history tracking, common aliases (`l`, `ll`, `la`), and most importantly, defines the custom dynamic `_milieu_prompt` function to visually indicate user privileges, exit codes, and the current working directory.
 
 - **`etc/profile`**
-  The environment initialization profile. It sets up essential variables like `HOME`, `PATH`, `PAGER`, and configures sandboxed environment roots for Go, Rust/Cargo, and Python's `uv` cache to ensure they don't pollute the host system. It also aliases core utilities to `toybox`/`busybox` variants.
+  The environment initialization profile. Sets `HOME`, `PATH`, `PAGER`, and all toolchain roots (Go, Rust, uv). Sets XDG base dirs (`XDG_DATA_HOME`, `XDG_CONFIG_HOME`, `XDG_CACHE_HOME`, `XDG_RUNTIME_DIR`) all pointing into `$ENV_ROOT`. Sets `CONTAINERS_CONF` to the build-generated `etc/containers/containers.conf`, `CONTAINERS_REGISTRIES_CONF`, `DBX_CONTAINER_MANAGER=podman`, `DBX_CONTAINER_HOME_PREFIX`, and `NP_LOCATION`. No config generation happens here.
+
+- **`etc/containers/containers.conf.in`**
+  Committed TOML template for podman. Contains `@MILIEU_DIR@` placeholder. `build.sh` runs `sed` to produce `etc/containers/containers.conf` with real absolute paths. **Do not edit `containers.conf` directly — edit the `.in` template.**
 
 - **`etc/zshrc`**
   A minor configuration script for Zsh that applies a custom backspace keybind (`backward-delete-char-instant`) to address text rendering or line-editing visual glitches.
@@ -49,6 +56,9 @@ This document provides a comprehensive explanation of every tracked file in the 
 
 - **`script/col`**
   A simple substitution wrapper that strips backspace characters (`\b`) and mangled overstrikes from piped input text. Mostly used as part of the man-page rendering pipeline to produce readable output in non-traditional pagers.
+
+- **`script/podman`**
+  A thin wrapper that execs `libexec/podman-static/bin/podman` (the real static binary). Exists so `bin/podman` is not a symlink into libexec (which would bypass CONTAINERS_CONF). `MILIEU_DIR` and `CONTAINERS_CONF` are already set by `etc/profile`.
 
 - **`script/less`**
   A wrapper around `busybox less` that intercepts unsupported flags (like `-T` and `-K`) and automatically pipes text through the `col` script to cleanly display nroff/mandoc output.

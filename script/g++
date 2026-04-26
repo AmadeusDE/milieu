@@ -2,4 +2,4 @@
 # ! We must use wrapper scripts instead of symlinks. Bootlin uses a toolchain-wrapper
 # ! that inspects $0 to find its corresponding .br_real binary. Symlinking into bin/ 
 # ! breaks this resolution.
-exec "$MILIEU_DIR/libexec/bootlin-gcc/bin/x86-64-linux-g++" "$@"
+exec "$MILIEU_DIR/libexec/bootlin-gcc/bin/x86_64-linux-g++" "$@"

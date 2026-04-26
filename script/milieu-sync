@@ -18,12 +18,12 @@ echo "This may take a moment on first launch or update..."
 
 # * 1. Rust Tools (via cargo-binstall)
 # * These will be installed into $CARGO_HOME/bin
-RUST_TOOLS="ripgrep bat uv eza procs bottom zoxide tokei nu"
+RUST_TOOLS="ripgrep bat uv eza procs bottom zoxide tokei nu evcxr_repl rust-script coreutils diffutils hyperfine git-cliff asciinema bacon wrkflw"
 if command -v cargo-binstall >/dev/null 2>&1; then
     echo "--- Installing Rust Tools ---"
-    # TODO maybe should used --locked?
     # shellcheck disable=SC2086
-    cargo binstall -y $RUST_TOOLS
+    cargo binstall -y $RUST_TOOLS --locked
+    cargo binstall -y findutils; mv "$CARGO_HOME/bin/find" "$CARGO_HOME/bin/rfind"; mv "$CARGO_HOME/bin/xargs" "$CARGO_HOME/bin/rxargs"
 else
     # ! Warning: cargo-binstall not found
     echo "Warning: cargo-binstall not found, skipping Rust tools."
@@ -33,11 +33,18 @@ fi
 # * These will be installed into $GOPATH/bin
 GO_TOOLS="
     github.com/jesseduffield/lazygit@latest
+    github.com/jesseduffield/lazydocker@latest
+    github.com/jesseduffield/lazynpm@latest
     github.com/dundee/gdu/v5/cmd/gdu@latest
     github.com/muesli/duf@latest
+    github.com/muesli/gitty@latest
     github.com/Equationzhao/g@latest
     github.com/junegunn/fzf@latest
     github.com/gokcehan/lf@latest
+    github.com/charmbracelet/glow@latest
+    github.com/charmbracelet/gum@latest
+    github.com/charmbracelet/freeze@latest
+    github.com/charmbracelet/huh@latest
 "
 if command -v go >/dev/null 2>&1; then
     echo "--- Installing Go Tools ---"

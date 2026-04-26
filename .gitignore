@@ -1,11 +1,18 @@
 # Ignore everything by default
 *
 
+# Track the LLM files
+!CONTEXT.md
+!.agents/
+!.agents/**
+
 # Always track these core files
 !.gitignore
 !build.sh
+!check.sh
+!clean.sh
 !install-links.sh
-!LLM_REFERENCE.md
+!Makefile
 !milieu-sh
 !milieu-sh-sys
 !milieu-sh-overlay
@@ -17,6 +24,8 @@
 
 # Track the etc/ directory and all its contents
 !etc/
+!etc/containers/
+!etc/containers/containers.conf.in
 !etc/mkshrc
 !etc/profile
 !etc/zshrc

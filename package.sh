@@ -36,7 +36,11 @@ tar -czf "$SRC_OUT" \
     etc \
     script \
     build.sh \
+    check.sh \
+    clean.sh \
     install-links.sh \
+    Makefile \
+    README.md \
     milieu-sh \
     milieu-sh-overlay \
     milieu-sh-sys \

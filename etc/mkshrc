@@ -19,6 +19,12 @@ alias du='busybox du -h'
 alias free='busybox free -h'
 alias fetch='pfetch'
 
+alias cs='cargo search'
+alias cb='cargo binstall'
+alias ci='cargo install --locked'
+alias ui='uv tool install'
+alias gi='go install'
+
 # Custom Prompt Logic
 # \001 is used in mksh to mark non-printing characters for line editing
 P_RESET=$(printf "\001\e[0m\002")
